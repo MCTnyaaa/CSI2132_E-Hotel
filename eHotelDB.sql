@@ -5,83 +5,75 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.hotelchain
 (
-    hotelchainid integer NOT NULL,
-    officeadresses character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    numberofhotels integer,
-    email character varying(30) COLLATE pg_catalog."default" NOT NULL,
-    phonenumber character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT hotelchain_pkey PRIMARY KEY (hotelchainid),
-    CONSTRAINT hotelchain_email_key UNIQUE (email),
-    CONSTRAINT hotelchain_phonenumber_key UNIQUE (phonenumber)
+    hotelchainid SERIAL,
+    officeadresses VARCHAR(50) NOT NULL,
+    numberofhotels integer CHECK(numberofhotels > 0),
+    email VARCHAR(30) NOT NULL,
+    phonenumber VARCHAR(20)  NOT NULL,
+    primary key (hotelchainid),
+    UNIQUE(email, phonenumber),
+    
 );
 
 CREATE TABLE IF NOT EXISTS public.hotel
 (
-    "hotelID" integer NOT NULL,
-    rating integer,
-    "numOfRooms" integer,
-    address character varying(50) NOT NULL,
-    email character varying(30) NOT NULL,
-    "phoneNum" character varying(15) NOT NULL,
-    PRIMARY KEY ("hotelID"),
-    CONSTRAINT "email and phonenum" UNIQUE (email, "phoneNum")
+    hotelID SERIAL,
+    rating integer CHECK (-1 < rating < 6),
+    numOfRooms integer,
+    hoteladdress VARCHAR(50) NOT NULL,
+    email VARCHAR(30) NOT NULL,
+    phoneNum character varying(15) NOT NULL,
+    primary key (hotelID),
+    UNIQUE(email, phoneNum)
 );
 
 CREATE TABLE IF NOT EXISTS public.room
 (
-    "roomID" integer NOT NULL,
-    "hotelID" integer NOT NULL,
-    price integer,
-    capacity integer,
-    availability boolean,
-    expandability character varying,
-    amenities character varying,
-    view character varying,
-    damage character varying,
-    PRIMARY KEY ("roomID")
+    roomID SERIAL,
+    hotelID SERIAL NOT NULL,
+    price integer CHECK (price > 0),
+    capacity integer CHECK (capacity > 0),
+    avail boolean,
+    expandability VARCHAR(255),
+    amenities VARCHAR(255),
+    view VARCHAR(30),
+    damage VARCHAR(255),
+    primary key (roomID)
+    FOREIGN KEY (hotelID) REFERENCES hotel
 );
 
 CREATE TABLE IF NOT EXISTS public.employee
 (
-    "employeeID" integer,
-    "managerID" integer,
-    "hotelID" integer,
-    name character varying(50) NOT NULL,
-    address character varying(40),
-    PRIMARY KEY ("employeeID"),
-    CONSTRAINT "managerID" UNIQUE ("managerID")
+    employeeID SERIAL,
+    managerID SERIAL,
+    hotelID integer,
+    ename VARCHAR(50) NOT NULL,
+    eaddress VARCHAR(50),
+    PRIMARY KEY (employeeID),
+    UNIQUE (managerID),
+    FOREIGN KEY (managerID) REFERENCES employeeID
 );
 
-ALTER TABLE IF EXISTS public.room
-    ADD CONSTRAINT "hotelID" FOREIGN KEY ("hotelID")
-    REFERENCES public.hotel ("hotelID") MATCH SIMPLE
-    ON UPDATE NO ACTION
-    ON DELETE NO ACTION
-    NOT VALID;
-
-
-ALTER TABLE IF EXISTS public.employee
-    ADD CONSTRAINT "hotelID" FOREIGN KEY ("hotelID")
-    REFERENCES public.hotel ("hotelID") MATCH SIMPLE
-    ON UPDATE NO ACTION
-    ON DELETE NO ACTION
-    NOT VALID;
 
 CREATE TABLE IF NOT EXISTS customer
 (
-	customerID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
-	name VARCHAR NOT NULL,
-	address VARCHAR NOT NULL,
-	registrationDate DATE NOT NULL
+	customerID SERIAL, -- Auto-incrementing primary key
+	cname VARCHAR(50) NOT NULL,
+	caddress VARCHAR(50) NOT NULL,
+	registrationDate DATE,
+
 );
+ALTER TABLE IF EXISTS customer
+    ADD CONSTRAINT defdate
+        DEFAULT GETDATE() FOR registrationDate;
 
 CREATE TABLE IF NOT EXISTS booking
 (
 	bookingID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
-	fk_customerID INTEGER,
-	fk_roomID INTEGER,
+	fk_customerID SERIAL,
+	fk_roomID SERIAL,
 	CONSTRAINT FK_Customer FOREIGN KEY (fk_customerID) REFERENCES customer(customerID),
-	CONSTRAINT FK_Room FOREIGN KEY (fk_roomID) REFERENCES public.room("roomID")
+	CONSTRAINT FK_Room FOREIGN KEY (fk_roomID) REFERENCES room(roomID)
 	
 );
 
@@ -90,12 +82,12 @@ CREATE TABLE IF NOT EXISTS rent
 	rentID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
 	checkInDate DATE NOT NULL,
 	checkOutDate DATE NOT NULL,
-	fk_roomID INTEGER,
-	fk_employeeID INTEGER,
-	fk_customerID INTEGER,
-	fk_bookingID INTEGER,
-	CONSTRAINT FK_Room FOREIGN KEY (fk_roomID) REFERENCES public.room("roomID"),
-	CONSTRAINT FK_Employee FOREIGN KEY (fk_employeeID) REFERENCES public.employee("employeeID"),
+	fk_roomID SERIAL,
+	fk_employeeID SERIAL,
+	fk_customerID SERIAL,
+	fk_bookingID SERIAL,
+	CONSTRAINT FK_Room FOREIGN KEY (fk_roomID) REFERENCES room(roomID),
+	CONSTRAINT FK_Employee FOREIGN KEY (fk_employeeID) REFERENCES employee(employeeID),
 	CONSTRAINT FK_Customer FOREIGN KEY (fk_customerID) REFERENCES customer(customerID),
 	CONSTRAINT FK_Booking FOREIGN KEY (fk_bookingID) REFERENCES booking(bookingID)
 );
@@ -103,7 +95,7 @@ CREATE TABLE IF NOT EXISTS rent
 CREATE TABLE IF NOT EXISTS rent_archive
 (
 	rentArchive SERIAL PRIMARY KEY, -- Auto-incrementing primary key
-	rentID INTEGER NOT NULL,
+	rentID SERIAL NOT NULL,
 	checkInDate DATE NOT NULL,
 	checkOutDate DATE NOT NULL
 );
@@ -111,7 +103,7 @@ CREATE TABLE IF NOT EXISTS rent_archive
 CREATE TABLE IF NOT EXISTS booking_archive
 (
 	bookingArchiveID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
-	bookingID INTEGER NOT NULL
+	bookingID SERIAL NOT NULL
 );
 
 

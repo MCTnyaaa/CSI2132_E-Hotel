@@ -179,14 +179,5 @@ CREATE TABLE IF NOT EXISTS public.booking_archive
 	bookingID SERIAL NOT NULL
 );
 
---DATABASE POPULATION
-INSERT INTO hotelchain(numberofhotels) VALUES(8);
-INSERT INTO hotelchain(numberofhotels) VALUES(9);
-INSERT INTO hotelchain(numberofhotels) VALUES(8);
-INSERT INTO hotelchain(numberofhotels) VALUES(10);
-INSERT INTO hotelchain(numberofhotels) VALUES(11);
-
-
-
 
 END;

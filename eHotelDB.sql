@@ -2,97 +2,170 @@
 -- Please log an issue at https://github.com/pgadmin-org/pgadmin4/issues/new/choose if you find any bugs, including reproduction steps.
 BEGIN;
 
+-- DROP TABLES for quick script execution (DO NOT DELETE THE ARCHIVES)
+DROP TABLE IF EXISTS public.rent CASCADE;
+DROP TABLE IF EXISTS public.booking CASCADE;
+DROP TABLE IF EXISTS public.room CASCADE;
+DROP TABLE IF EXISTS public.customer CASCADE;
+DROP TABLE IF EXISTS public.employee CASCADE;
+DROP TABLE IF EXISTS public.hotel CASCADE;
+DROP TABLE IF EXISTS public.hotelchain CASCADE;
 
 CREATE TABLE IF NOT EXISTS public.hotelchain
 (
-    hotelchainid SERIAL,
-    officeadresses VARCHAR(50) NOT NULL,
-    numberofhotels integer CHECK(numberofhotels > 0),
-    email VARCHAR(30) NOT NULL,
-    phonenumber VARCHAR(20)  NOT NULL,
-    primary key (hotelchainid),
-    UNIQUE(email, phonenumber),
-    
+    hotelChainID SERIAL PRIMARY KEY,
+    numberofhotels INTEGER CHECK(numberofhotels > 0) -- Create a trigger to make sure that the hotels don't exceed this number
+);
+
+CREATE TABLE IF NOT EXISTS public.hotelchainaddress -- Multivalue attribute for hotelchain's address of offices
+(
+	addressID SERIAL PRIMARY KEY,
+	streetNumber INTEGER,
+	streetName VARCHAR(100),
+	cit VARCHAR(100),
+	stateOrProvince VARCHAR(100),
+	zip VARCHAR(10) CHECK (LENGTH(zip) BETWEEN 5 AND 6),
+	fk_hotelChainID INTEGER NOT NULL,
+	FOREIGN KEY (fk_hotelChainID) REFERENCES hotelchain(hotelChainID) ON DELETE CASCADE -- The referenced row will be deleted when parent is deleted
+);
+
+CREATE TABLE IF NOT EXISTS public.hotelchainemail -- Multivalue attribute for hotelchain's email addresses
+(
+	emailID SERIAL PRIMARY KEY,
+	fk_hotelChainID INTEGER NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+	FOREIGN KEY (fk_hotelChainID) REFERENCES hotelchain(hotelChainID) ON DELETE CASCADE -- The referenced row will be deleted when parent is deleted
+);
+
+CREATE TABLE IF NOT EXISTS public.hotelchainphone -- Multivalue attribute for hotelchain's phone
+(
+	phoneID SERIAL PRIMARY KEY,
+	fk_hotelChainID INTEGER NOT NULL,
+    phoneNumber VARCHAR(20) UNIQUE NOT NULL CHECK (LENGTH(phoneNumber) BETWEEN 7 AND 20),
+	FOREIGN KEY (fk_hotelChainID) REFERENCES hotelchain(hotelChainID) ON DELETE CASCADE -- The referenced row will be deleted when parent is deleted
 );
 
 CREATE TABLE IF NOT EXISTS public.hotel
 (
-    hotelID SERIAL,
-    rating integer CHECK (-1 < rating < 6),
-    numOfRooms integer,
-    hoteladdress VARCHAR(50) NOT NULL,
-    email VARCHAR(30) NOT NULL,
-    phoneNum character varying(15) NOT NULL,
-    primary key (hotelID),
-    UNIQUE(email, phoneNum)
+    hotelID SERIAL PRIMARY KEY,
+	fk_hotelChainID INTEGER NOT NULL,
+    rating INTEGER CHECK (rating BETWEEN 0 AND 5), -- 0 to 5 stars (inclusive)
+    numOfRooms INTEGER,
+
+	-- Composite attributes of hotel's address
+	streetNumber INTEGER,
+	streetName VARCHAR(100),
+	cit VARCHAR(100),
+	stateOrProvince VARCHAR(100),
+	zip VARCHAR(10) CHECK (LENGTH(zip) BETWEEN 5 AND 6),
+	
+	FOREIGN KEY (fk_hotelChainID) REFERENCES hotelchain(hotelChainID) 
+);
+
+CREATE TABLE IF NOT EXISTS public.hotelemail -- Multivalue attribute for hotel's email addresses
+(
+	emailID SERIAL PRIMARY KEY,
+	fk_hotelID INTEGER NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+	FOREIGN KEY (fk_hotelID) REFERENCES hotel(hotelID) ON DELETE CASCADE -- The referenced row will be deleted when parent is deleted
+);
+
+CREATE TABLE IF NOT EXISTS public.hotelphone -- Multivalue attribute for hotel's phone
+(
+	phoneID SERIAL PRIMARY KEY,
+	fk_hotelID INTEGER NOT NULL,
+    phoneNumber VARCHAR(20) UNIQUE NOT NULL CHECK (LENGTH(phoneNumber) BETWEEN 7 AND 20),
+	FOREIGN KEY (fk_hotelID) REFERENCES hotel(hotelID) ON DELETE CASCADE -- The referenced row will be deleted when parent is deleted
 );
 
 CREATE TABLE IF NOT EXISTS public.room
 (
-    roomID SERIAL,
-    hotelID SERIAL NOT NULL,
+    roomID SERIAL PRIMARY KEY,
+    fk_hotelID INTEGER NOT NULL, -- Shouldn't be SERIAL
     price integer CHECK (price > 0),
     capacity integer CHECK (capacity > 0),
-    avail boolean,
+    avail BOOLEAN,
     expandability VARCHAR(255),
-    amenities VARCHAR(255),
-    view VARCHAR(30),
+    roomView VARCHAR(30),
     damage VARCHAR(255),
-    primary key (roomID)
-    FOREIGN KEY (hotelID) REFERENCES hotel
+    FOREIGN KEY (fk_hotelID) REFERENCES hotel(hotelID)
+);
+
+CREATE TABLE IF NOT EXISTS public.roomamenities -- Multivalue attribute for room's ameneties
+(
+	amenityID SERIAL PRIMARY KEY,
+	fk_roomID INTEGER NOT NULL,
+	amenityName VARCHAR(100) NOT NULL,
+	FOREIGN KEY (fk_roomID) REFERENCES room(roomID) ON DELETE CASCADE, -- The referenced row will be deleted when parent is deleted
+	CONSTRAINT unique_room_amenity UNIQUE (fk_roomID, amenityName) -- Ensuring uniqueness for each room's amenity
 );
 
 CREATE TABLE IF NOT EXISTS public.employee
 (
-    employeeID SERIAL,
-    managerID SERIAL,
-    hotelID integer,
+    employeeID SERIAL PRIMARY KEY,
+    managerID INTEGER, -- Making it SERIAL means it increments each creation, which makes every employee a manager
+    fk_hotelID INTEGER NOT NULL, 
     ename VARCHAR(50) NOT NULL,
-    eaddress VARCHAR(50),
-    PRIMARY KEY (employeeID),
     UNIQUE (managerID),
-    FOREIGN KEY (managerID) REFERENCES employeeID
+    FOREIGN KEY (managerID) REFERENCES employee(employeeID),
+	FOREIGN KEY (fk_hotelID) REFERENCES hotel(hotelID) -- Needs their hotel affiliation
 );
 
-
-CREATE TABLE IF NOT EXISTS customer
+CREATE TABLE IF NOT EXISTS public.employeeaddress -- Multivalue attribute for employee's address
 (
-	customerID SERIAL, -- Auto-incrementing primary key
-	cname VARCHAR(50) NOT NULL,
-	caddress VARCHAR(50) NOT NULL,
-	registrationDate DATE,
-
+	addressID SERIAL PRIMARY KEY,
+	streetNumber INTEGER,
+	streetName VARCHAR(100),
+	cit VARCHAR(100),
+	stateOrProvince VARCHAR(100),
+	zip VARCHAR(10) CHECK (LENGTH(zip) BETWEEN 5 AND 6),
+	fk_employeeID INTEGER NOT NULL,
+	FOREIGN KEY (fk_employeeID) REFERENCES employee(employeeID) ON DELETE CASCADE -- The referenced row will be deleted when parent is deleted
 );
-ALTER TABLE IF EXISTS customer
-    ADD CONSTRAINT defdate
-        DEFAULT GETDATE() FOR registrationDate;
 
-CREATE TABLE IF NOT EXISTS booking
+CREATE TABLE IF NOT EXISTS public.customer
+(
+	customerID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
+	cname VARCHAR(50) NOT NULL,
+	
+	-- Composite attributes of hotel's address
+	streetNumber INTEGER,
+	streetName VARCHAR(100),
+	cit VARCHAR(100),
+	stateOrProvince VARCHAR(100),
+	zip VARCHAR(10) CHECK (LENGTH(zip) BETWEEN 5 AND 6),
+	
+	registrationDate DATE DEFAULT CURRENT_DATE
+);
+
+
+CREATE TABLE IF NOT EXISTS public.booking
 (
 	bookingID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
-	fk_customerID SERIAL,
-	fk_roomID SERIAL,
-	CONSTRAINT FK_Customer FOREIGN KEY (fk_customerID) REFERENCES customer(customerID),
-	CONSTRAINT FK_Room FOREIGN KEY (fk_roomID) REFERENCES room(roomID)
+	fk_customerID INTEGER NOT NULL,
+	fk_roomID INTEGER,
+	FOREIGN KEY (fk_customerID) REFERENCES customer(customerID),
+	FOREIGN KEY (fk_roomID) REFERENCES room(roomID)
 	
 );
 
-CREATE TABLE IF NOT EXISTS rent
+CREATE TABLE IF NOT EXISTS public.rent
 (
 	rentID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
 	checkInDate DATE NOT NULL,
 	checkOutDate DATE NOT NULL,
-	fk_roomID SERIAL,
-	fk_employeeID SERIAL,
-	fk_customerID SERIAL,
-	fk_bookingID SERIAL,
-	CONSTRAINT FK_Room FOREIGN KEY (fk_roomID) REFERENCES room(roomID),
-	CONSTRAINT FK_Employee FOREIGN KEY (fk_employeeID) REFERENCES employee(employeeID),
-	CONSTRAINT FK_Customer FOREIGN KEY (fk_customerID) REFERENCES customer(customerID),
-	CONSTRAINT FK_Booking FOREIGN KEY (fk_bookingID) REFERENCES booking(bookingID)
+	fk_roomID INTEGER NOT NULL, -- Do not put SERIAL on FKs
+	fk_employeeID INTEGER NOT NULL,
+	fk_customerID INTEGER NOT NULL,
+	fk_bookingID INTEGER,
+	FOREIGN KEY (fk_roomID) REFERENCES room(roomID),
+	FOREIGN KEY (fk_employeeID) REFERENCES employee(employeeID),
+	FOREIGN KEY (fk_customerID) REFERENCES customer(customerID),
+	FOREIGN KEY (fk_bookingID) REFERENCES booking(bookingID)
 );
 
-CREATE TABLE IF NOT EXISTS rent_archive
+-- Create a trigger for rent/booking to be copied into each respective archive below
+CREATE TABLE IF NOT EXISTS public.rent_archive
 (
 	rentArchive SERIAL PRIMARY KEY, -- Auto-incrementing primary key
 	rentID SERIAL NOT NULL,
@@ -100,11 +173,20 @@ CREATE TABLE IF NOT EXISTS rent_archive
 	checkOutDate DATE NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS booking_archive
+CREATE TABLE IF NOT EXISTS public.booking_archive
 (
 	bookingArchiveID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
 	bookingID SERIAL NOT NULL
 );
+
+--DATABASE POPULATION
+INSERT INTO hotelchain(numberofhotels) VALUES(8);
+INSERT INTO hotelchain(numberofhotels) VALUES(9);
+INSERT INTO hotelchain(numberofhotels) VALUES(8);
+INSERT INTO hotelchain(numberofhotels) VALUES(10);
+INSERT INTO hotelchain(numberofhotels) VALUES(11);
+
+
 
 
 END;

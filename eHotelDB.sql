@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.hotelchainaddress -- Multivalue attribute for 
 	addressID SERIAL PRIMARY KEY,
 	streetNumber INTEGER,
 	streetName VARCHAR(100),
-	cit VARCHAR(100),
+	city VARCHAR(100),
 	stateOrProvince VARCHAR(100),
 	zip VARCHAR(10) CHECK (LENGTH(zip) BETWEEN 5 AND 6),
 	fk_hotelChainID INTEGER NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS public.hotel
 	-- Composite attributes of hotel's address
 	streetNumber INTEGER,
 	streetName VARCHAR(100),
-	cit VARCHAR(100),
+	city VARCHAR(100),
 	stateOrProvince VARCHAR(100),
 	zip VARCHAR(10) CHECK (LENGTH(zip) BETWEEN 5 AND 6),
 	
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS public.room
     roomID SERIAL PRIMARY KEY,
     fk_hotelID INTEGER NOT NULL, -- Shouldn't be SERIAL
     price integer CHECK (price > 0),
-    capacity integer CHECK (capacity > 0),
+    capacity integer CHECK (capacity >= 1),
     avail BOOLEAN,
     expandability VARCHAR(255),
     roomView VARCHAR(30),
@@ -106,7 +106,6 @@ CREATE TABLE IF NOT EXISTS public.employee
     managerID INTEGER, -- Making it SERIAL means it increments each creation, which makes every employee a manager
     fk_hotelID INTEGER NOT NULL, 
     ename VARCHAR(50) NOT NULL,
-    UNIQUE (managerID),
     FOREIGN KEY (managerID) REFERENCES employee(employeeID),
 	FOREIGN KEY (fk_hotelID) REFERENCES hotel(hotelID) -- Needs their hotel affiliation
 );
@@ -116,7 +115,7 @@ CREATE TABLE IF NOT EXISTS public.employeeaddress -- Multivalue attribute for em
 	addressID SERIAL PRIMARY KEY,
 	streetNumber INTEGER,
 	streetName VARCHAR(100),
-	cit VARCHAR(100),
+	city VARCHAR(100),
 	stateOrProvince VARCHAR(100),
 	zip VARCHAR(10) CHECK (LENGTH(zip) BETWEEN 5 AND 6),
 	fk_employeeID INTEGER NOT NULL,
@@ -127,17 +126,20 @@ CREATE TABLE IF NOT EXISTS public.customer
 (
 	customerID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
 	cname VARCHAR(50) NOT NULL,
-	
-	-- Composite attributes of hotel's address
-	streetNumber INTEGER,
-	streetName VARCHAR(100),
-	cit VARCHAR(100),
-	stateOrProvince VARCHAR(100),
-	zip VARCHAR(10) CHECK (LENGTH(zip) BETWEEN 5 AND 6),
-	
 	registrationDate DATE DEFAULT CURRENT_DATE
 );
 
+CREATE TABLE IF NOT EXISTS public.customeraddress -- Multivalue attribute for customer's address
+(
+	addressID SERIAL PRIMARY KEY,
+	streetNumber INTEGER,
+	streetName VARCHAR(100),
+	city VARCHAR(100),
+	stateOrProvince VARCHAR(100),
+	zip VARCHAR(10) CHECK (LENGTH(zip) BETWEEN 5 AND 6),
+	fk_customerID INTEGER NOT NULL,
+	FOREIGN KEY (fk_customerID) REFERENCES customer(customerID) ON DELETE CASCADE -- The referenced row will be deleted when parent is deleted
+);
 
 CREATE TABLE IF NOT EXISTS public.booking
 (
@@ -157,7 +159,7 @@ CREATE TABLE IF NOT EXISTS public.rent
 	fk_roomID INTEGER NOT NULL, -- Do not put SERIAL on FKs
 	fk_employeeID INTEGER NOT NULL,
 	fk_customerID INTEGER NOT NULL,
-	fk_bookingID INTEGER,
+	fk_bookingID INTEGER, -- Customer can walk in
 	FOREIGN KEY (fk_roomID) REFERENCES room(roomID),
 	FOREIGN KEY (fk_employeeID) REFERENCES employee(employeeID),
 	FOREIGN KEY (fk_customerID) REFERENCES customer(customerID),
@@ -167,17 +169,71 @@ CREATE TABLE IF NOT EXISTS public.rent
 -- Create a trigger for rent/booking to be copied into each respective archive below
 CREATE TABLE IF NOT EXISTS public.rent_archive
 (
-	rentArchive SERIAL PRIMARY KEY, -- Auto-incrementing primary key
-	rentID SERIAL NOT NULL,
+	rentArchiveID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
+	rentID INTEGER NOT NULL,
 	checkInDate DATE NOT NULL,
-	checkOutDate DATE NOT NULL
+	checkOutDate DATE NOT NULL,
+	fk_roomID INTEGER NOT NULL, -- Do not forget the FKs
+	fk_employeeID INTEGER NOT NULL,
+	fk_customerID INTEGER NOT NULL,
+	fk_bookingID INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS public.booking_archive
 (
 	bookingArchiveID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
-	bookingID SERIAL NOT NULL
+	bookingID INTEGER NOT NULL,
+	fk_customerID INTEGER NOT NULL, -- Do not forget the FKs
+	fk_roomID INTEGER
 );
 
+-- Trigger functions
+CREATE OR REPLACE FUNCTION check_num_hotels() RETURNS TRIGGER AS $$
+	BEGIN
+		-- current number of hotels for a certain hotel chain >= numberofhotels value of that ceratin hotelchain
+		IF (SELECT COUNT(*) FROM hotel WHERE fk_hotelChainID = NEW.fk_hotelChainID) >= (SELECT numberofhotels FROM hotelchain WHERE hotelChainID = NEW.fk_hotelChainID) THEN 
+			RAISE EXCEPTION 'Number of hotels has been exceeded'; -- Out of bounds of the numberofhotels
+		END IF;
+
+		RETURN NEW; -- Proceed with insertion
+	END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER enforce_hotel_limit
+BEFORE INSERT ON hotel
+FOR EACH ROW
+EXECUTE FUNCTION check_num_hotels();
+
+CREATE OR REPLACE FUNCTION copy_to_booking_archive() RETURNS TRIGGER AS $$
+	BEGIN
+    	-- Insert all booking details into booking_archive immediately after insertion
+	    INSERT INTO public.booking_archive (bookingID, fk_customerID, fk_roomID)
+   		VALUES (NEW.bookingID, NEW.fk_customerID, NEW.fk_roomID);
+		
+    RETURN NEW; -- Return the newly inserted row (not needed but Postgres requires)
+	END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER enforce_booking_archive
+AFTER INSERT ON booking
+FOR EACH ROW
+EXECUTE FUNCTION copy_to_booking_archive();
+
+CREATE OR REPLACE FUNCTION copy_to_rent_archive() RETURNS TRIGGER AS $$
+	BEGIN
+    	-- Insert all booking details into rent_archive immediately after insertion
+	    INSERT INTO public.rent_archive (rentID, checkInDate, checkOutDate, fk_roomID, fk_employeeID, fk_customerID, fk_bookingID)
+   		VALUES (NEW.rentID, NEW.checkInDate, NEW.checkOutDate, NEW.fk_roomID, NEW.fk_employeeID, NEW.fk_customerID, NEW.fk_bookingID);
+		
+    RETURN NEW; -- Return the newly inserted row (not needed but Postgres requires)
+	END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER enforce_rent_archive
+AFTER INSERT ON rent
+FOR EACH ROW
+EXECUTE FUNCTION copy_to_rent_archive();
 
 END;
+
+

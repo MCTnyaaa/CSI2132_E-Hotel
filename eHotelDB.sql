@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS public.hotelchain CASCADE;
 CREATE TABLE IF NOT EXISTS public.hotelchain
 (
     hotelChainID SERIAL PRIMARY KEY,
+	hotelName VARCHAR(200) NOT NULL,
     numberofhotels INTEGER CHECK(numberofhotels > 0) -- Create a trigger to make sure that the hotels don't exceed this number
 );
 
@@ -233,6 +234,20 @@ CREATE TRIGGER enforce_rent_archive
 AFTER INSERT ON rent
 FOR EACH ROW
 EXECUTE FUNCTION copy_to_rent_archive();
+
+-- Implementin views
+CREATE VIEW room_available_per_area AS -- rooms available within an area 
+SELECT h.zip, COUNT(*) AS availableRooms
+FROM hotel AS h 
+JOIN room AS r ON h.hotelID = r.fk_hotelID
+WHERE r.avail = TRUE
+GROUP BY h.zip;
+
+CREATE VIEW room_capacity_per_hotel AS -- capacity of each room per hotel
+SELECT h.hotelID, SUM(r.capacity) AS capacityOfAllRooms
+FROM hotel AS h 
+JOIN room AS r ON h.hotelID = r.fk_hotelID
+GROUP BY h.hotelID;
 
 END;
 

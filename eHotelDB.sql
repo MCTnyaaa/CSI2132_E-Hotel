@@ -167,7 +167,6 @@ CREATE TABLE IF NOT EXISTS public.rent
 	FOREIGN KEY (fk_bookingID) REFERENCES booking(bookingID)
 );
 
--- Create a trigger for rent/booking to be copied into each respective archive below
 CREATE TABLE IF NOT EXISTS public.rent_archive
 (
 	rentArchiveID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
@@ -207,31 +206,50 @@ EXECUTE FUNCTION check_num_hotels();
 
 CREATE OR REPLACE FUNCTION copy_to_booking_archive() RETURNS TRIGGER AS $$
 	BEGIN
-    	-- Insert all booking details into booking_archive immediately after insertion
-	    INSERT INTO public.booking_archive (bookingID, fk_customerID, fk_roomID)
-   		VALUES (NEW.bookingID, NEW.fk_customerID, NEW.fk_roomID);
+
+		-- TG_OP is a special variable that checks the operation that fired the trigger
+		IF TG_OP = 'INSERT' THEN -- Insert all booking details into booking_archive immediately after insertion
+	    	INSERT INTO public.booking_archive (bookingID, fk_customerID, fk_roomID)
+   			VALUES (NEW.bookingID, NEW.fk_customerID, NEW.fk_roomID);
+		END IF;
+
+		IF TG_OP = 'UPDATE' THEN -- Update booking_archive with new data
+			UPDATE public.booking_archive
+			SET rentID = NEW.rentID, fk_customerID = NEW.fk_customerID, fk_roomID = NEW.fk_roomID
+			WHERE bookingArchiveID = OLD.bookingArchiveID; -- To the same booking_archive row
+		END IF;
 		
     RETURN NEW; -- Return the newly inserted row (not needed but Postgres requires)
 	END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER enforce_booking_archive
-AFTER INSERT ON booking
+AFTER INSERT OR UPDATE ON booking
 FOR EACH ROW
 EXECUTE FUNCTION copy_to_booking_archive();
 
 CREATE OR REPLACE FUNCTION copy_to_rent_archive() RETURNS TRIGGER AS $$
 	BEGIN
-    	-- Insert all booking details into rent_archive immediately after insertion
-	    INSERT INTO public.rent_archive (rentID, checkInDate, checkOutDate, fk_roomID, fk_employeeID, fk_customerID, fk_bookingID)
-   		VALUES (NEW.rentID, NEW.checkInDate, NEW.checkOutDate, NEW.fk_roomID, NEW.fk_employeeID, NEW.fk_customerID, NEW.fk_bookingID);
-		
+    	
+		-- TG_OP is a special variable that checks the operation that fired the trigger
+		IF TG_OP = 'INSERT' THEN -- Insert all booking details into rent_archive immediately after insertion
+	    	INSERT INTO public.rent_archive (rentID, checkInDate, checkOutDate, fk_roomID, fk_employeeID, fk_customerID, fk_bookingID)
+   			VALUES (NEW.rentID, NEW.checkInDate, NEW.checkOutDate, NEW.fk_roomID, NEW.fk_employeeID, NEW.fk_customerID, NEW.fk_bookingID);
+		END IF;
+
+		IF TG_OP = 'UPDATE' THEN -- Update rent_archive with new data
+			UPDATE public.rent_archive
+			SET bookingID = NEW.bookingID, checkInDate = NEW.checkInDate, checkOutDate = NEW.checkOutDate, 
+			fk_roomID = NEW.fk_roomID, fk_employeeID = NEW.fk_employeeID, fk_customerID = NEW.fk_customerID,
+			fk_bookingID = NEW.fk_bookingID
+			WHERE rentArchiveID = OLD.rentArchiveID; -- To the same rent_archive row
+		END IF;
     RETURN NEW; -- Return the newly inserted row (not needed but Postgres requires)
 	END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER enforce_rent_archive
-AFTER INSERT ON rent
+AFTER INSERT OR UPDATE ON rent
 FOR EACH ROW
 EXECUTE FUNCTION copy_to_rent_archive();
 
@@ -277,6 +295,7 @@ INSERT INTO public.hotelchainaddress (streetNumber, streetName, city, stateOrPro
 (303, 'Palm Dr', 'Ottawa', 'ON', '673211', 3),
 (404, 'Downtown Blvd', 'Trenton', 'ON', '60601', 4),
 (505, 'Summit Rd', 'Toronto', 'ON', '80201', 5);
+
 
 -- Hotels
 INSERT INTO public.hotel (fk_hotelChainID, rating, numOfRooms, streetNumber, streetName, city, stateOrProvince, zip) VALUES
@@ -371,6 +390,20 @@ INSERT INTO public.rent (checkInDate, checkOutDate, fk_roomID, fk_employeeID, fk
 ('2024-04-05', '2024-04-15', 3, 3, 2, 2),
 ('2024-05-10', '2024-05-20', 5, 5, 3, 3);
 
+-- Database queries
+-- Queries the total earning of a hotel in a year
+SELECT room.fk_hotelID, EXTRACT(YEAR FROM rent.checkInDate) AS year, SUM(room.price) AS totalHotelEarningPerYear
+FROM public.room
+JOIN public.rent ON room.roomID = rent.fk_roomID
+WHERE EXTRACT(YEAR FROM rent.checkInDate) = EXTRACT(YEAR FROM rent.checkOutDate) -- Checkin and checkout should be within the same year
+GROUP BY room.fk_hotelID, EXTRACT(YEAR FROM rent.checkInDate);
+
+-- Queries all the rented room
+SELECT rent.checkInDate, rent.checkOutDate, EXTRACT(YEAR FROM rent.checkInDate) AS checkin_year, 
+EXTRACT(YEAR FROM rent.checkOutDate) AS checkout_year, room.fk_hotelID, room.price
+FROM public.room
+JOIN public.rent ON room.roomID = rent.fk_roomID
+ORDER BY checkin_year, checkout_year;
 
 END;
 

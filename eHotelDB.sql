@@ -253,6 +253,11 @@ GROUP BY h.hotelID;
 --Families will often book hotels that have rooms with availability of 4 or greater, and the availability must be true,
 --so this should speed up queries for families looking to book rooms.
 CREATE INDEX family_bookings ON room(fk_hotelID, avail, capacity) WHERE avail = TRUE AND capacity > 3;
+--People will want to search for hotels near them, whether by zip or city
+CREATE INDEX hotel_locations ON hotel(city, zip);
+--For people to see their bookings/rentings
+CREATE INDEX booking_lookup ON booking(fk_customerID);
+CREATE INDEX renting_lookup ON rent(fk_customerID);
 
 
 

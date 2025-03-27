@@ -236,18 +236,136 @@ FOR EACH ROW
 EXECUTE FUNCTION copy_to_rent_archive();
 
 -- Implementin views
-CREATE VIEW room_available_per_area AS -- rooms available within an area 
-SELECT h.zip, COUNT(*) AS availableRooms
+CREATE VIEW room_available_per_area AS -- rooms available within an area. City in this case
+SELECT h.city, COUNT(*) AS availableRooms
 FROM hotel AS h 
 JOIN room AS r ON h.hotelID = r.fk_hotelID
 WHERE r.avail = TRUE
-GROUP BY h.zip;
+GROUP BY h.city;
 
 CREATE VIEW room_capacity_per_hotel AS -- capacity of each room per hotel
 SELECT h.hotelID, SUM(r.capacity) AS capacityOfAllRooms
 FROM hotel AS h 
 JOIN room AS r ON h.hotelID = r.fk_hotelID
 GROUP BY h.hotelID;
+
+--Creating indexes
+--Families will often book hotels that have rooms with availability of 4 or greater, and the availability must be true,
+--so this should speed up queries for families looking to book rooms.
+CREATE INDEX family_bookings ON room(fk_hotelID, avail, capacity) WHERE avail = TRUE AND capacity > 3;
+
+
+
+--Database population
+--Hotel chains
+INSERT INTO public.hotelchain (hotelName, numberofhotels) VALUES
+('Vought International', 10),
+('The Westin', 12),
+('Sheraton', 8),
+('Gotham Hotel', 9),
+('Springfield Getaway', 11);
+
+--Hotel chain addresses
+INSERT INTO public.hotelchainaddress (streetNumber, streetName, city, stateOrProvince, zip, fk_hotelChainID) VALUES
+(101, 'Main St', 'Ottawa', 'ON', '10001', 1),
+(202, 'Ocean Ave', 'Toronto', 'ON', '90001', 2),
+(303, 'Palm Dr', 'Ottawa', 'ON', '673211', 3),
+(404, 'Downtown Blvd', 'Trenton', 'ON', '60601', 4),
+(505, 'Summit Rd', 'Toronto', 'ON', '80201', 5);
+
+-- Hotels
+INSERT INTO public.hotel (fk_hotelChainID, rating, numOfRooms, streetNumber, streetName, city, stateOrProvince, zip) VALUES
+(1, 5, 50, 120, 'Broadway', 'Ottawa', 'ON', '10001'),
+(1, 4, 40, 130, 'Wall St', 'Ottawa', 'ON', '10001'),
+(1, 3, 35, 140, '5th Ave', 'Ottawa', 'ON', '10001'),
+(2, 2, 20, 220, 'Sunset Blvd', 'Los Angeles', 'CA', '90028'),
+(2, 3, 30, 230, 'Hollywood Blvd', 'Los Angeles', 'CA', '90028'),
+(3, 4, 45, 310, 'Beachfront', 'Miami', 'FL', '33139'),
+(3, 5, 60, 320, 'Collins Ave', 'Miami', 'FL', '33140'),
+(4, 3, 33, 410, 'Michigan Ave', 'Chicago', 'IL', '60611'),
+(4, 4, 42, 420, 'State St', 'Chicago', 'IL', '60602'),
+(5, 5, 55, 510, 'Alpine Way', 'Denver', 'CO', '80202');
+
+-- Rooms, 5 for each hotel with varying capacities
+INSERT INTO public.room (fk_hotelID, price, capacity, avail, expandability, roomView, damage) VALUES
+(1, 200, 2, TRUE, 'Yes', 'Mountain', NULL),
+(1, 250, 4, TRUE, 'Yes', 'Sea', NULL),
+(1, 300, 6, TRUE, 'Yes', 'Sea', 'Minor'),
+(1, 180, 5, TRUE, 'YES', 'Sea', NULL),
+(1, 220, 3, TRUE, 'Yes', 'Sea', 'Major'),
+(2, 150, 2, TRUE, 'Yes', 'Mountain', NULL),
+(2, 200, 4, TRUE, 'Yes', 'Sea', NULL),
+(2, 175, 6, TRUE, 'No', 'Mountain', NULL),
+(2, 275, 5, TRUE, 'Yes', 'Mountain', 'Minor'),
+(2, 120, 3, TRUE, 'No', 'Sea', NULL),
+(3, 180, 2, TRUE, 'Yes', 'Mountain', NULL),
+(3, 250, 4, TRUE, 'No', 'Sea', NULL),
+(3, 300, 6, TRUE, 'Yes', 'Sea', 'Minor'),
+(3, 180, 5, TRUE, 'No', 'Sea', NULL),
+(3, 220, 3, TRUE, 'Yes', 'Sea', NULL),
+(4, 150, 2, TRUE, 'No', 'Mountain', 'Major'),
+(4, 200, 4, TRUE, 'Yes', 'Sea', NULL),
+(4, 175, 6, TRUE, 'No', 'Mountain', NULL),
+(4, 275, 5, TRUE, 'Yes', 'Mountain', 'Minor'),
+(4, 120, 3, TRUE, 'No', 'Sea', NULL),
+(5, 180, 2, TRUE, 'Yes', 'Mountain', NULL),
+(5, 250, 4, TRUE, 'No', 'Sea', NULL),
+(5, 300, 6, TRUE, 'Yes', 'Sea', 'Minor'),
+(5, 180, 5, TRUE, 'No', 'Sea', NULL),
+(5, 220, 3, TRUE, 'Yes', 'Sea', 'Major'),
+(6, 150, 2, TRUE, 'No', 'Mountain', NULL),
+(6, 200, 4, TRUE, 'Yes', 'Sea', NULL),
+(6, 175, 6, TRUE, 'No', 'Mountain', NULL),
+(6, 275, 5, TRUE, 'Yes', 'Mountain', 'Minor'),
+(6, 120, 3, TRUE, 'No', 'Sea', NULL),
+(7, 180, 2, TRUE, 'Yes', 'Mountain', NULL),
+(7, 250, 4, TRUE, 'No', 'Sea', NULL),
+(7, 300, 6, TRUE, 'Yes', 'Sea', 'Minor'),
+(7, 180, 5, TRUE, 'No', 'Sea', NULL),
+(7, 220, 3, TRUE, 'Yes', 'Sea', 'Major'),
+(8, 150, 2, TRUE, 'No', 'Mountain', NULL),
+(8, 200, 4, TRUE, 'Yes', 'Sea', NULL),
+(8, 175, 6, TRUE, 'No', 'Mountain', NULL),
+(8, 275, 5, TRUE, 'Yes', 'Mountain', 'Minor'),
+(8, 120, 3, TRUE, 'No', 'Sea', NULL),
+(9, 180, 2, TRUE, 'Yes', 'Mountain', NULL),
+(9, 250, 4, TRUE, 'No', 'Sea', NULL),
+(9, 300, 6, TRUE, 'Yes', 'Sea', 'Minor'),
+(9, 180, 5, TRUE, 'No', 'Sea', NULL),
+(9, 220, 3, TRUE, 'Yes', 'Sea', NULL),
+(10, 150, 2, TRUE, 'No', 'Mountain', NULL),
+(10, 200, 4, TRUE, 'Yes', 'Sea', NULL),
+(10, 175, 6, TRUE, 'No', 'Mountain', NULL),
+(10, 275, 5, TRUE, 'Yes', 'Mountain', 'Minor'),
+(10, 120, 3, TRUE, 'No', 'Sea', NULL);
+
+
+-- Insert employees
+INSERT INTO public.employee (managerID, fk_hotelID, ename) VALUES
+(NULL, 1, 'John Manager'),
+(1, 1, 'Alice Receptionist'),
+(1, 1, 'Bob Porter'),
+(NULL, 2, 'Sarah Manager'),
+(4, 2, 'Mike Concierge');
+
+-- Insert customers
+INSERT INTO public.customer (cname, registrationDate) VALUES
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25');
+
+-- Insert bookings
+INSERT INTO public.booking (fk_customerID, fk_roomID) VALUES
+(1, 1),
+(2, 3),
+(3, 5);
+
+-- Insert rents
+INSERT INTO public.rent (checkInDate, checkOutDate, fk_roomID, fk_employeeID, fk_customerID, fk_bookingID) VALUES
+('2024-03-01', '2024-03-10', 1, 2, 1, 1),
+('2024-04-05', '2024-04-15', 3, 3, 2, 2),
+('2024-05-10', '2024-05-20', 5, 5, 3, 3);
+
 
 END;
 

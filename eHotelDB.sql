@@ -10,6 +10,10 @@ DROP TABLE IF EXISTS public.customer CASCADE;
 DROP TABLE IF EXISTS public.employee CASCADE;
 DROP TABLE IF EXISTS public.hotel CASCADE;
 DROP TABLE IF EXISTS public.hotelchain CASCADE;
+-- Below shouldn't be applied in normal cases because archives shouldn't be deleted from a db
+-- DROP TABLE IF EXISTS public.booking_archive CASCADE;
+-- DROP TABLE IF EXISTS public.rent_archive CASCADE;
+
 
 CREATE TABLE IF NOT EXISTS public.hotelchain
 (
@@ -83,7 +87,7 @@ CREATE TABLE IF NOT EXISTS public.room
 (
     roomID SERIAL PRIMARY KEY,
     fk_hotelID INTEGER NOT NULL, -- Shouldn't be SERIAL
-    price integer CHECK (price > 0),
+    price NUMERIC(10,2) CHECK (price > 0),
     capacity integer CHECK (capacity >= 1),
     avail BOOLEAN,
     expandability VARCHAR(255),
@@ -107,7 +111,7 @@ CREATE TABLE IF NOT EXISTS public.employee
     managerID INTEGER, -- Making it SERIAL means it increments each creation, which makes every employee a manager
     fk_hotelID INTEGER NOT NULL, 
     ename VARCHAR(50) NOT NULL,
-    FOREIGN KEY (managerID) REFERENCES employee(employeeID),
+    FOREIGN KEY (managerID) REFERENCES employee(employeeID) ON DELETE SET NULL,
 	FOREIGN KEY (fk_hotelID) REFERENCES hotel(hotelID) -- Needs their hotel affiliation
 );
 
@@ -191,7 +195,7 @@ CREATE TABLE IF NOT EXISTS public.booking_archive
 CREATE OR REPLACE FUNCTION check_num_hotels() RETURNS TRIGGER AS $$
 	BEGIN
 		-- current number of hotels for a certain hotel chain >= numberofhotels value of that ceratin hotelchain
-		IF (SELECT COUNT(*) FROM hotel WHERE fk_hotelChainID = NEW.fk_hotelChainID) >= (SELECT numberofhotels FROM hotelchain WHERE hotelChainID = NEW.fk_hotelChainID) THEN 
+		IF (SELECT COUNT(*) FROM hotel WHERE fk_hotelChainID = NEW.fk_hotelChainID) > (SELECT numberofhotels FROM hotelchain WHERE hotelChainID = NEW.fk_hotelChainID) THEN 
 			RAISE EXCEPTION 'Number of hotels has been exceeded'; -- Out of bounds of the numberofhotels
 		END IF;
 
@@ -215,8 +219,8 @@ CREATE OR REPLACE FUNCTION copy_to_booking_archive() RETURNS TRIGGER AS $$
 
 		IF TG_OP = 'UPDATE' THEN -- Update booking_archive with new data
 			UPDATE public.booking_archive
-			SET rentID = NEW.rentID, fk_customerID = NEW.fk_customerID, fk_roomID = NEW.fk_roomID
-			WHERE bookingArchiveID = OLD.bookingArchiveID; -- To the same booking_archive row
+			SET fk_customerID = NEW.fk_customerID, fk_roomID = NEW.fk_roomID
+			WHERE bookingID = OLD.bookingID; -- Match based on bookingID
 		END IF;
 		
     RETURN NEW; -- Return the newly inserted row (not needed but Postgres requires)
@@ -239,10 +243,9 @@ CREATE OR REPLACE FUNCTION copy_to_rent_archive() RETURNS TRIGGER AS $$
 
 		IF TG_OP = 'UPDATE' THEN -- Update rent_archive with new data
 			UPDATE public.rent_archive
-			SET bookingID = NEW.bookingID, checkInDate = NEW.checkInDate, checkOutDate = NEW.checkOutDate, 
-			fk_roomID = NEW.fk_roomID, fk_employeeID = NEW.fk_employeeID, fk_customerID = NEW.fk_customerID,
-			fk_bookingID = NEW.fk_bookingID
-			WHERE rentArchiveID = OLD.rentArchiveID; -- To the same rent_archive row
+			SET checkInDate = NEW.checkInDate, checkOutDate = NEW.checkOutDate, fk_roomID = NEW.fk_roomID, 
+			fk_employeeID = NEW.fk_employeeID, fk_customerID = NEW.fk_customerID, fk_bookingID = NEW.fk_bookingID
+            WHERE rentID = OLD.rentID;  -- Match based on rentID
 		END IF;
     RETURN NEW; -- Return the newly inserted row (not needed but Postgres requires)
 	END;

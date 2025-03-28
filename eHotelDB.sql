@@ -408,6 +408,19 @@ FROM public.room
 JOIN public.rent ON room.roomID = rent.fk_roomID
 ORDER BY checkin_year, checkout_year;
 
+-- Queries all hotels that are in Ottawa and rated 4 stars or better
+
+SELECT hotelchain.hotelName, hotel.hotelID
+FROM public.hotelchain
+JOIN public.hotel ON hotelchain.hotelChainID = hotel.fk_hotelChainID
+WHERE hotel.city = 'Ottawa' AND hotel.rating > 3;
+
+-- Queries all hotel chains with at least 2 hotels
+SELECT hotelID, fk_hotelChainID, city 
+FROM hotel 
+WHERE fk_hotelChainID IN (
+    SELECT hotelChainID FROM hotelchain WHERE numberofhotels > 2
+);
 END;
 
 

@@ -11,8 +11,8 @@ DROP TABLE IF EXISTS public.employee CASCADE;
 DROP TABLE IF EXISTS public.hotel CASCADE;
 DROP TABLE IF EXISTS public.hotelchain CASCADE;
 -- Below shouldn't be applied in normal cases because archives shouldn't be deleted from a db
--- DROP TABLE IF EXISTS public.booking_archive CASCADE;
--- DROP TABLE IF EXISTS public.rent_archive CASCADE;
+DROP TABLE IF EXISTS public.booking_archive CASCADE;
+DROP TABLE IF EXISTS public.rent_archive CASCADE;
 
 
 CREATE TABLE IF NOT EXISTS public.hotelchain
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS public.booking_archive
 CREATE OR REPLACE FUNCTION check_num_hotels() RETURNS TRIGGER AS $$
 	BEGIN
 		-- current number of hotels for a certain hotel chain >= numberofhotels value of that ceratin hotelchain
-		IF (SELECT COUNT(*) FROM hotel WHERE fk_hotelChainID = NEW.fk_hotelChainID) > (SELECT numberofhotels FROM hotelchain WHERE hotelChainID = NEW.fk_hotelChainID) THEN 
+		IF (SELECT COUNT(*) FROM hotel WHERE fk_hotelChainID = NEW.fk_hotelChainID) >= (SELECT numberofhotels FROM hotelchain WHERE hotelChainID = NEW.fk_hotelChainID) THEN 
 			RAISE EXCEPTION 'Number of hotels has been exceeded'; -- Out of bounds of the numberofhotels
 		END IF;
 
@@ -285,7 +285,7 @@ CREATE INDEX renting_lookup ON rent(fk_customerID);
 --Database population
 --Hotel chains
 INSERT INTO public.hotelchain (hotelName, numberofhotels) VALUES
-('Vought International', 10),
+('Vought International', 7),
 ('The Westin', 12),
 ('Sheraton', 8),
 ('Gotham Hotel', 9),
@@ -421,6 +421,8 @@ FROM hotel
 WHERE fk_hotelChainID IN (
     SELECT hotelChainID FROM hotelchain WHERE numberofhotels > 2
 );
+
+
 END;
 
 

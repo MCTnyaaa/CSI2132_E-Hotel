@@ -179,11 +179,9 @@
                             <form method='POST'  action=''>
                                 
                                 <input type='hidden' name='roomid' value='{$row['roomid']}'>
-                                <input type='hidden' name='checkInDate' value='" . htmlspecialchars($_GET['checkInDate']) . "'>
-                                <input type='hidden' name='checkOutDate' value='" . htmlspecialchars($_GET['checkOutDate']) . "'>
+                                <input type='hidden' name='checkInDate' value='" . (isset($_GET['checkInDate']) ? htmlspecialchars($_GET['checkInDate']) : ''). "'>
+                                <input type='hidden' name='checkOutDate' value='" . (isset($_GET['checkOutDate']) ? htmlspecialchars($_GET['checkOutDate']) : '') . "'>
 
-                                <label for='customerID'>Customer ID:</label>
-                                <input type='number' name='customerID' required>
                                 <label for='cname'>Name:</label>
                                 <input type='text' name='cname' required>
                                 <button type='submit' name = 'book'>Book Now</button>
@@ -204,7 +202,6 @@
 
     
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['book'])) {
-            $customerID = $_POST['customerID'];
             $cname = $_POST['cname'];
             $roomID = $_POST['roomid'];
             $checkInDate = $_POST['checkInDate'];
@@ -215,9 +212,9 @@
                 die("Database connection failed: " . pg_last_error());
             }
         
-            // Step 1: Check if customer exists
-            $checkCustomerQuery = "SELECT customerid FROM customer WHERE customerid = $1";
-            $customerResult = pg_query_params($connection, $checkCustomerQuery, [$customerID]);
+            // Step 1: Check if customer exists using their cname (they're treated as a unique usersname)
+            $checkCustomerQuery = "SELECT customerid FROM customer WHERE cname = $1";
+            $customerResult = pg_query_params($connection, $checkCustomerQuery, [$cname]);
         
             if (!$customerResult) {
                 die("Error checking customer: " . pg_last_error($connection));
@@ -225,17 +222,20 @@
         
             if (pg_num_rows($customerResult) == 0) {
                 // Step 2: Insert new customer if they don't exist
-                $insertCustomerQuery = "INSERT INTO customer (customerid, cname) VALUES ($1, $2)";
-                $insertCustomerResult = pg_query_params($connection, $insertCustomerQuery, [$customerID, $cname]);
+                $insertCustomerQuery = "INSERT INTO customer (cname) VALUES ($1)";
+                $insertCustomerResult = pg_query_params($connection, $insertCustomerQuery, [$cname]);
         
                 if (!$insertCustomerResult) {
                     die("Error inserting customer: " . pg_last_error($connection));
                 }
             }
 
+            $customerid = pg_query_params($connection, $checkCustomerQuery, [$cname]);
+            $row = pg_fetch_assoc($customerid);
+
             
             $bookingQuery = "INSERT INTO booking (fk_customerID, fk_roomID, checkindate, checkoutdate) VALUES ($1, $2, $3, $4)";
-            $bookingResult = pg_query_params($connection, $bookingQuery, [$customerID, $roomID, $checkInDate, $checkOutDate]);
+            $bookingResult = pg_query_params($connection, $bookingQuery, [$row['customerid'], $roomID, $checkInDate, $checkOutDate]);
         
             if ($bookingResult) {
                 # Make the rent's room's availability false
@@ -259,7 +259,7 @@
     <br><br>
 
     <div id="employeeSection">
-        <h2>Employeee Section</h2>
+        <h2>Employee Section</h2>
 
         <?php
             $query = "SELECT *
@@ -294,8 +294,8 @@
                         echo "<td> 
                             <form method='POST'  action=''>
                                 <input type='hidden' name='roomid' value='{$row['fk_roomid']}'>
-                                <input type='hidden' name='checkInDate' value='" . htmlspecialchars($_GET['checkInDate']) . "'>
-                                <input type='hidden' name='checkOutDate' value='" . htmlspecialchars($_GET['checkOutDate']) . "'>
+                                <input type='hidden' name='checkInDate' value='" . (isset($_GET['checkInDate']) ? htmlspecialchars($_GET['checkInDate']) : ''). "'>
+                                <input type='hidden' name='checkOutDate' value='" . (isset($_GET['checkOutDate']) ? htmlspecialchars($_GET['checkOutDate']) : ''). "'>
                                 <input type='hidden' name='customerid' value='{$row['fk_customerid']}'>
                                 <input type='hidden' name='bookingid' value='{$row['bookingid']}'>
 

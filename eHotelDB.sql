@@ -149,9 +149,11 @@ CREATE TABLE IF NOT EXISTS public.customeraddress -- Multivalue attribute for cu
 
 CREATE TABLE IF NOT EXISTS public.booking
 (
-	bookingID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
 	fk_customerID INTEGER NOT NULL,
 	fk_roomID INTEGER,
+	checkInDate DATE NOT NULL,
+	checkOutDate DATE NOT NULL, 
+	bookingID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
 	FOREIGN KEY (fk_customerID) REFERENCES customer(customerID),
 	FOREIGN KEY (fk_roomID) REFERENCES room(roomID)
 	
@@ -380,13 +382,47 @@ INSERT INTO public.employee (managerID, fk_hotelID, ename) VALUES
 INSERT INTO public.customer (cname, registrationDate) VALUES
 ('John Doe', '2023-01-15'),
 ('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
+('Walter White', '2023-03-25'),
+('John Doe', '2023-01-15'),
+('Jane Doe', '2023-02-20'),
 ('Walter White', '2023-03-25');
 
 -- Insert bookings
-INSERT INTO public.booking (fk_customerID, fk_roomID) VALUES
-(1, 1),
-(2, 3),
-(3, 5);
+INSERT INTO public.booking (fk_customerID, fk_roomID, checkInDate, checkOutDate) VALUES
+(1, 1, CURRENT_DATE, '2025-04-07'),
+(2, 3, CURRENT_DATE, '2025-04-12'),
+(30, 8, CURRENT_DATE, '2025-04-28');
+
 
 -- Insert rents
 INSERT INTO public.rent (checkInDate, checkOutDate, fk_roomID, fk_employeeID, fk_customerID, fk_bookingID) VALUES

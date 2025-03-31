@@ -7,6 +7,11 @@
 </head>
 <body>
     <h2>Hotel Database from PostgreSQL</h2>
+    <form method="POST">
+    
+    
+    
+</form>
     <?php 
     $connection = pg_connect("host=localhost dbname=postgres user=postgres password=supaballs24");
     if(!$connection){
@@ -14,119 +19,14 @@
         exit;
 
     }
-    $result = false;
-    // Determine which view to display
-        $view = $_GET['view'] ?? 'room_view'; // Default view is 'room_view'
-
-        switch ($view) {
-            case 'room_view':
-                $query = $query = "SELECT 
-                r.roomid, r.price, r.capacity, r.roomview, r.expandability,
-                h.city, h.rating,
-                hc.hotelname as chainname
-                FROM room r
-                JOIN hotel h ON r.fk_hotelid = h.hotelid
-                JOIN hotelchain hc ON h.fk_hotelchainid = hc.hotelchainid
-                WHERE r.avail = TRUE";
-            
-            $params = [];
-            $paramCount = 1;
-            
-            // Concatenate the conditions based on provided parameters
-            if (!empty($_GET['checkInDate']) && !empty($_GET['checkOutDate'])) {
-                $query .= " AND r.roomid NOT IN (
-                    SELECT fk_roomid FROM rent 
-                    WHERE (checkindate, checkoutdate) OVERLAPS ($1::date, $2::date)
-                )";
-                $params[] = $_GET['checkInDate'];
-                $params[] = $_GET['checkOutDate'];
-                $paramCount += 2;
-            }
-            
-            if (!empty($_GET['roomCap'])) {
-                $query .= " AND r.capacity >= $" . $paramCount++;
-                $params[] = $_GET['roomCap'];
-            }
-            
-            if (!empty($_GET['city'])) {
-                $query .= " AND h.city ILIKE $" . $paramCount++;
-                $params[] = '%' . $_GET['city'] . '%';
-            }
-            
-            if (!empty($_GET['hotelChain'])) {
-                $query .= " AND h.fk_hotelchainid = $" . $paramCount++;
-                $params[] = $_GET['hotelChain'];
-            }
-            
-            if (!empty($_GET['minRating'])) {
-                $query .= " AND h.rating >= $" . $paramCount++;
-                $params[] = $_GET['minRating'];
-            }
-            
-            if (!empty($_GET['maxPrice'])) {
-                $query .= " AND r.price <= $" . $paramCount++;
-                $params[] = $_GET['maxPrice'];
-            }
-            
-            $query .= " ORDER BY r.price ASC";
-            
-            # Execute the query
-            $result = pg_query_params($connection, $query, $params);
-            $viewTitle = "Room View";
-            break;
-
-            case 'room_available_per_area':
-                $query = "SELECT * FROM room_available_per_area"; // Replace with actual booking view query
-                $result = pg_query($connection, $query);
-                $viewTitle = "Rooms Available Per Area";
-                break;
-            case 'room_capacity_per_hotel':
-                $query = "SELECT * FROM room_capacity_per_hotel WHERE random() IS NOT NULL;"; // Replace with actual customer view query
-                $result = pg_query($connection, $query);
-                $viewTitle = "Total Capacity Per Hotel View";
-                break;
-            default:
-                $query = "SELECT * FROM room_view";
-                $viewTitle = "Room View";
-}
-      # NOTE: the database is stored LOCALLY, so CHANGE the respective arguments!!!!!! Matt -> dbname = hoteldb password = password. Brad -> dbname = postgres, password = supaballs24
+     
+    # NOTE: the database is stored LOCALLY, so CHANGE the respective arguments!!!!!! Matt -> dbname = hoteldb password = password. Brad -> dbname = postgres, password = supaballs24
 
 
 
-if ($result && pg_num_rows($result) > 0) {
-    echo "<table>";
-    echo "<tr>";
 
-    // Fetch and display table headers dynamically
-    $columns = pg_fetch_assoc($result);
-    foreach ($columns as $col => $val) {
-        echo "<th>" . htmlspecialchars($col) . "</th>";
-    }
-    echo "</tr>";
-
-    // Reset pointer and fetch table data
-    pg_result_seek($result, 0);
-    while ($row = pg_fetch_assoc($result)) {
-        echo "<tr>";
-        foreach ($row as $cell) {
-            echo "<td>" . htmlspecialchars($cell) . "</td>";
-        }
-        echo "</tr>";
-    }
-    echo "</table>";
-} else {
-    echo "<p>No data available for this view.</p>";
-}
 ?>
-<!-- Buttons to switch between views -->
-<div class="button-group">
-    <a href="?view=room_view"><button>Room View</button></a>
-    <a href="?view=room_available_per_area"><button>Rooms Available Per Area</button></a>
-    <a href="?view=room_capacity_per_hotel"><button>Total Capacity Per Hotel View</button></a>
-</div>
 
-<!-- Display the selected view -->
-<h3>Current View: <?php echo htmlspecialchars($viewTitle); ?></h3>
 
     <div>
     <h1>Search For a Room</h1>
@@ -186,10 +86,103 @@ if ($result && pg_num_rows($result) > 0) {
     </form>
 
     <div id="roomResults">
-        <!-- Available rooms will be displayed here -->
         <?php
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['book'])) {
+            $customerID = $_POST['customerID'];
+            $cname = $_POST['cname'];
+            $roomID = $_POST['roomid'];
+            $checkInDate = $_POST['checkInDate'];
+            $checkOutDate = $_POST['checkOutDate'];
+        
+            // Ensure database connection is open
+            if (!$connection) {
+                die("Database connection failed: " . pg_last_error());
+            }
+        
+            // Step 1: Check if customer exists
+            $checkCustomerQuery = "SELECT customerid FROM customer WHERE customerid = $1";
+            $customerResult = pg_query_params($connection, $checkCustomerQuery, [$customerID]);
+        
+            if (!$customerResult) {
+                die("Error checking customer: " . pg_last_error($connection));
+            }
+        
+            if (pg_num_rows($customerResult) == 0) {
+                // Step 2: Insert new customer if they don't exist
+                $insertCustomerQuery = "INSERT INTO customer (customerid, cname) VALUES ($1, $2)";
+                $insertCustomerResult = pg_query_params($connection, $insertCustomerQuery, [$customerID, $cname]);
+        
+                if (!$insertCustomerResult) {
+                    die("Error inserting customer: " . pg_last_error($connection));
+                }
+            }
+        
+            $bookingQuery = "INSERT INTO booking (fk_customerID, fk_roomID, checkindate, checkoutdate) VALUES ($1, $2, $3, $4)";
+            $bookingResult = pg_query_params($connection, $bookingQuery, [$customerID, $roomID, $checkInDate, $checkOutDate]);
+        
+            if ($bookingResult) {
+                echo "<p style='color: green;'>Room booked successfully!</p>";
+            } else {
+                echo "<p style='color: red;'>Error booking the room: " . pg_last_error($connection) . "</p>";
+            }
+        }
+        //Available rooms will be displayed here
+
         if ((isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'GET' && (isset($_GET['checkInDate']) || isset($_GET['city']) || isset($_GET['hotelChain'])))) {
             # Build the query based on parameters
+
+            $query = $query = "SELECT 
+                r.roomid, r.price, r.capacity, r.roomview, r.expandability,
+                h.city, h.rating,
+                hc.hotelname as chainname
+                FROM room r
+                JOIN hotel h ON r.fk_hotelid = h.hotelid
+                JOIN hotelchain hc ON h.fk_hotelchainid = hc.hotelchainid
+                WHERE r.avail = TRUE";
+            
+            $params = [];
+            $paramCount = 1;
+            
+            // Concatenate the conditions based on provided parameters
+            if (!empty($_GET['checkInDate']) && !empty($_GET['checkOutDate'])) {
+                $query .= " AND r.roomid NOT IN (
+                    SELECT fk_roomid FROM rent 
+                    WHERE (checkInDate, checkOutDate) OVERLAPS ($1::date, $2::date)
+                )";
+                $params[] = $_GET['checkInDate'];
+                $params[] = $_GET['checkOutDate'];
+                $paramCount += 2;
+            }
+            
+            if (!empty($_GET['roomCap'])) {
+                $query .= " AND r.capacity >= $" . $paramCount++;
+                $params[] = $_GET['roomCap'];
+            }
+            
+            if (!empty($_GET['city'])) {
+                $query .= " AND h.city ILIKE $" . $paramCount++;
+                $params[] = '%' . $_GET['city'] . '%';
+            }
+            
+            if (!empty($_GET['hotelChain'])) {
+                $query .= " AND h.fk_hotelchainid = $" . $paramCount++;
+                $params[] = $_GET['hotelChain'];
+            }
+            
+            if (!empty($_GET['minRating'])) {
+                $query .= " AND h.rating >= $" . $paramCount++;
+                $params[] = $_GET['minRating'];
+            }
+            
+            if (!empty($_GET['maxPrice'])) {
+                $query .= " AND r.price <= $" . $paramCount++;
+                $params[] = $_GET['maxPrice'];
+            }
+            
+            $query .= " ORDER BY r.price ASC";
+            
+            # Execute the query
+            $result = pg_query_params($connection, $query, $params);
             
             
             if (!$result) {
@@ -207,6 +200,8 @@ if ($result && pg_num_rows($result) > 0) {
                         <th>View</th>
                         <th>Rating</th>
                         <th>Expandable</th>
+                        <th>Action</th> <!-- New Column for Button -->
+
                     </tr>";
                     
                     while ($row = pg_fetch_assoc($result)) {
@@ -220,6 +215,19 @@ if ($result && pg_num_rows($result) > 0) {
                         echo "<td>{$row['rating']}★</td>";
                         echo "<td>" . ($row['expandability'] ? 'Yes' : 'No') . "</td>";
                         echo "</tr>";
+                        echo "<td>
+                                <form method='POST'>
+                                    <input type='hidden' name='roomid' value='{$row['roomid']}'>
+                                    <input type='hidden' name='checkInDate' value='" . htmlspecialchars($_GET['checkInDate']) . "'>
+                                    <input type='hidden' name='checkOutDate' value='" . htmlspecialchars($_GET['checkOutDate']) . "'>
+                                    <label for='customerID'>Customer ID:</label>
+                                    <input type='number' name='customerID' required>
+                                    <label for='cname'>Name:</label>
+                                    <input type='text' name='cname' required>
+                                    <button type='submit' name = 'book'>Book Now</button>
+                                </form>
+                            </td>";
+                        
                     }
                     
                     echo "</table>";

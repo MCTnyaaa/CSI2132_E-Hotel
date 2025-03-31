@@ -1,4 +1,4 @@
-CREATE Database hoteldb;
+CREATE Database hoteldb; -- Delete/comment out when already created.
 
 
 BEGIN;
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS public.employeeaddress -- Multivalue attribute for em
 
 CREATE TABLE IF NOT EXISTS public.customer
 (
-	customerID SERIAL PRIMARY KEY, -- Auto-incrementing primary key
+	customerID SERIAL UNIQUE PRIMARY KEY, -- Auto-incrementing primary key
 	cname VARCHAR(50) NOT NULL,
 	registrationDate DATE DEFAULT CURRENT_DATE
 );
@@ -380,48 +380,36 @@ INSERT INTO public.employee (managerID, fk_hotelID, ename) VALUES
 
 -- Insert customers
 INSERT INTO public.customer (cname, registrationDate) VALUES
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25'),
-('John Doe', '2023-01-15'),
-('Jane Doe', '2023-02-20'),
-('Walter White', '2023-03-25');
+    ('John Doe', '2023-01-15'),
+    ('Jane Doe', '2023-02-20'),
+    ('Walter White', '2023-03-25'),
+    ('Jesse Pinkman', '2023-04-10'),
+    ('Saul Goodman', '2023-05-05'),
+    ('Skyler White', '2023-06-18'),
+    ('Hank Schrader', '2023-07-22'),
+    ('Marie Schrader', '2023-08-14'),
+    ('Gustavo Fring', '2023-09-30'),
+    ('Mike Ehrmantraut', '2023-10-11'),
+    ('Tuco Salamanca', '2023-11-02'),
+    ('Lalo Salamanca', '2023-12-05'),
+    ('Kim Wexler', '2024-01-07'),
+    ('Howard Hamlin', '2024-02-14'),
+    ('Chuck McGill', '2024-03-19'),
+    ('Nacho Varga', '2024-04-22'),
+    ('Todd Alquist', '2024-05-30'),
+    ('Lydia Rodarte-Quayle', '2024-06-15'),
+    ('Huell Babineaux', '2024-07-08'),
+    ('Victor', '2024-08-21'),
+    ('Gale Boetticher', '2024-09-05'),
+    ('Badger', '2024-10-13'),
+    ('Skinny Pete', '2024-11-25'),
+    ('Ed Galbraith', '2024-12-29');
 
 -- Insert bookings
 INSERT INTO public.booking (fk_customerID, fk_roomID, checkInDate, checkOutDate) VALUES
 (1, 1, CURRENT_DATE, '2025-04-07'),
 (2, 3, CURRENT_DATE, '2025-04-12'),
-(30, 8, CURRENT_DATE, '2025-04-28');
+(18, 8, CURRENT_DATE, '2025-04-28');
 
 
 -- Insert rents
